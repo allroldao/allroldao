@@ -99,9 +99,10 @@
   </a>
 </div>
 
-  <div class="card">
+  <div class="card" id="listaCard">
     <div class="toolbar">
       <input type="text" id="busca" placeholder="Buscar por nome, CPF ou BA...">
+      <button class="btn-primary" id="btnNovoTopo" type="button">Novo cadastro</button>
       <button class="btn-secondary" id="btnImportar">Importar planilha</button>
       <input type="file" id="arquivoImportar" accept=".csv,.xlsx,.xls" style="display:none">
       <button class="btn-secondary" id="btnExportar">Exportar CSV</button>
@@ -110,7 +111,7 @@
     <div id="listaWrap"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="formCard" style="display:none;">
     <form id="form">
       <div class="section-title">Dados pessoais</div>
       <div style="display:flex; gap:20px; align-items:flex-start;">
@@ -182,7 +183,7 @@
 
       <div class="actions">
         <span class="status" id="status"></span>
-        <button type="button" class="btn-secondary" id="btnNovo">Novo</button>
+        <button type="button" class="btn-secondary" id="btnVoltarForm">Cancelar / voltar</button>
         <button type="submit" class="btn-primary" id="btnSalvar">Salvar cadastro</button>
       </div>
     </form>
@@ -192,8 +193,9 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
       <h2 style="margin:0; font-size:18px;">Detalhes do cadastro</h2>
       <div style="display:flex; gap:10px;">
+        <button type="button" class="btn-secondary" onclick="novoCadastro()">Novo cadastro</button>
         <button type="button" class="btn-primary" onclick="editarDaVisualizacao()">Editar</button>
-        <button type="button" class="btn-secondary" onclick="fecharVisualizar()">Fechar</button>
+        <button type="button" class="btn-secondary" onclick="fecharVisualizar()">Voltar para pesquisa</button>
       </div>
     </div>
     <div id="verConteudo"></div>
@@ -358,7 +360,7 @@ function renderLista() {
       <td>${r.placa || '-'}</td>
       <td>${r.tipo || '-'}</td>
       <td class="row-actions">
-        <button class="btn-secondary" onclick="visualizar('${r._id}')">Visualizar</button>
+        <button class="btn-primary" onclick="visualizar('${r._id}')">Visualizar</button>
         <button class="btn-secondary" onclick="editar('${r._id}')">Editar</button>
         <button class="btn-danger" onclick="excluir('${r._id}')">Excluir</button>
       </td>
@@ -443,6 +445,35 @@ function formatarDataExibicao(v) {
 
 let visualizandoId = null;
 
+function mostrarTelaPesquisa() {
+  document.getElementById('listaCard').style.display = 'block';
+  document.getElementById('formCard').style.display = 'none';
+  document.getElementById('verCard').style.display = 'none';
+  visualizandoId = null;
+  editingId = null;
+}
+
+function mostrarTelaFormulario() {
+  document.getElementById('listaCard').style.display = 'none';
+  document.getElementById('verCard').style.display = 'none';
+  document.getElementById('formCard').style.display = 'block';
+}
+
+function mostrarTelaVisualizacao() {
+  document.getElementById('listaCard').style.display = 'none';
+  document.getElementById('formCard').style.display = 'none';
+  document.getElementById('verCard').style.display = 'block';
+}
+
+window.novoCadastro = function() {
+  clearForm();
+  editingId = null;
+  visualizandoId = null;
+  mostrarTelaFormulario();
+  setStatus('Novo cadastro.');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+};
+
 window.visualizar = function(id) {
   const r = registros.find(x => x._id === id);
   if (!r) return;
@@ -489,19 +520,18 @@ window.visualizar = function(id) {
   const nota = r.anotacoes || '';
   html += `<div class="field wide"><div style="padding:10px 12px; border:1px solid #eee; border-radius:6px; background:#fafafa; white-space:pre-wrap; word-break:break-word; min-height:60px;">${nota || '-'}</div></div>`;
   document.getElementById('verConteudo').innerHTML = html;
-  document.getElementById('verCard').style.display = 'block';
-  document.getElementById('verCard').scrollIntoView({behavior: 'smooth', block: 'start'});
+  mostrarTelaVisualizacao();
+  window.scrollTo({top: 0, behavior: 'smooth'});
 };
 
 window.editarDaVisualizacao = function() {
   const id = visualizandoId;
-  fecharVisualizar();
   if (id) editar(id);
 };
 
 window.fecharVisualizar = function() {
-  document.getElementById('verCard').style.display = 'none';
-  visualizandoId = null;
+  mostrarTelaPesquisa();
+  window.scrollTo({top: 0, behavior: 'smooth'});
 };
 
 window.editar = function(id) {
@@ -509,6 +539,8 @@ window.editar = function(id) {
   if (!r) return;
   fillForm(r);
   editingId = id;
+  visualizandoId = id;
+  mostrarTelaFormulario();
   setStatus('Editando registro...');
   window.scrollTo({top: 0, behavior: 'smooth'});
 };
@@ -549,14 +581,26 @@ document.getElementById('form').addEventListener('submit', async (e) => {
     await loadRegistros();
     clearForm();
     setStatus('Cadastro salvo com sucesso.');
+    const salvo = registros.find(x => x._id === id);
+    if (salvo) {
+      visualizar(id);
+    } else {
+      mostrarTelaPesquisa();
+    }
   } catch (err) {
     setStatus('Erro ao salvar. Tente novamente.');
   }
 });
 
-document.getElementById('btnNovo').addEventListener('click', () => {
-  clearForm();
-  setStatus('Formulário limpo.');
+document.getElementById('btnNovoTopo').addEventListener('click', novoCadastro);
+
+document.getElementById('btnVoltarForm').addEventListener('click', () => {
+  if (visualizandoId && registros.some(x => x._id === visualizandoId)) {
+    visualizar(visualizandoId);
+  } else {
+    mostrarTelaPesquisa();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
 });
 
 document.getElementById('busca').addEventListener('input', renderLista);
@@ -725,6 +769,9 @@ cv.addEventListener('pointerdown',e=>{dragging=true;lx=e.offsetX;ly=e.offsetY;cv
 document.getElementById('cnhEsq').onclick=()=>{rot-=90;draw()};document.getElementById('cnhDir').onclick=()=>{rot+=90;draw()};document.getElementById('cnhMenos').onclick=()=>{scale=Math.max(.20,scale/1.10);draw()};document.getElementById('cnhMais').onclick=()=>{scale=Math.min(10,scale*1.10);draw()};document.getElementById('cnhReset').onclick=reset;document.getElementById('cnhFechar').onclick=()=>document.getElementById('cnhModal').classList.remove('open');
 document.getElementById('cnhUsar').onclick=()=>{const r=cr(),o=document.createElement('canvas');o.width=300;o.height=375;o.getContext('2d').drawImage(cv,r.x,r.y,r.w,r.h,0,0,o.width,o.height);fotoAtual=o.toDataURL('image/jpeg',.88);atualizarPreviewFoto();document.getElementById('cnhModal').classList.remove('open');setStatus('Foto recortada. Clique em Salvar cadastro.')};
 })();
+
+// Tela inicial: pesquisa/lista. Formulário só abre em Editar ou Novo.
+mostrarTelaPesquisa();
 </script>
 
 </body>
