@@ -675,7 +675,14 @@ function mapearLinha(linha) {
       if (idx !== -1) {
         let valor = linha[chavesPlanilha[idx]];
         if (valor === undefined || valor === null) valor = '';
-        dados[campo] = valor.toString().trim();
+        let valorTexto = valor.toString().trim();
+        // BA deve sempre ser tratado como texto com 4 dígitos.
+        // Ex.: 90 -> 0090, 178 -> 0178, 793 -> 0793.
+        if (campo === 'ba' && valorTexto !== '') {
+          const somenteDigitos = valorTexto.replace(/\D/g, '');
+          if (somenteDigitos) valorTexto = somenteDigitos.padStart(4, '0');
+        }
+        dados[campo] = valorTexto;
         break;
       }
     }
@@ -696,7 +703,7 @@ document.getElementById('arquivoImportar').addEventListener('change', async (e) 
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, {type: 'array'});
     const primeiraAba = workbook.SheetNames[0];
-    const linhas = XLSX.utils.sheet_to_json(workbook.Sheets[primeiraAba], {defval: ''});
+    const linhas = XLSX.utils.sheet_to_json(workbook.Sheets[primeiraAba], {defval: '', raw: false});
     if (linhas.length === 0) {
       statusEl.textContent = 'A planilha não tem linhas de dados.';
       return;
